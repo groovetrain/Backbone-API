@@ -160,7 +160,6 @@ class BackboneAPIRestfulController extends BackboneAPIController {
 		// 		)
 		// 	);
 		// }
-		echo '<pre>';print_r($routes);die();
 		static::$routes = $routes;
 		parent::__construct();
 	}
