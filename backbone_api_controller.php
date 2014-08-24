@@ -7,11 +7,12 @@ class BackboneAPIController {
 	function BackboneAPIController() {
 		global $wpdb;
 		$this->wpdb = $wpdb;
+		$this->_routes = static::$routes;
 		add_action('wp_router_generate_routes', array($this, 'add_routes'), 20);
 	}
 
 	function add_routes($router) {
-		foreach (static::$routes as $name => $attrs) {
+		foreach ($this->_routes as $name => $attrs) {
 			$router_args = array(
 				'path' => $attrs['path'],
 				'template' => false,
@@ -34,10 +35,9 @@ class BackboneAPIController {
 	function dispatch() {
 		global $wp;
 		$this->_current_route_name = $wp->query_vars['WP_Route'];
-		$this->_current_route = static::$routes[$this->_current_route_name];
+		$this->_current_route = $this->_routes[$this->_current_route_name];
 		// Set up get and post vars
 		$this->get = $_GET;
-		$this->post = $_POST;
 
 		// Map url params into the get array
 		foreach ($wp->query_vars as $key => $val) {
@@ -46,7 +46,8 @@ class BackboneAPIController {
 			}
 		}
 
-		// If the request method is put, php won't fill out the post array with the vars so we handle it ourselves
+		// If the request method is put or if the content type is json,
+		// php won't fill out the post array with the vars so we handle it ourselves
 		if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
 			$php_input = file_get_contents("php://input");
 			if ($_SERVER['CONTENT_TYPE'] == 'application/json') {
@@ -54,7 +55,14 @@ class BackboneAPIController {
 			} else {
 				parse_str($php_input, $this->post);
 			}
+		} elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
+			if ($_SERVER['CONTENT_TYPE'] == 'application/json') {
+				$this->post = json_decode(file_get_contents('php://input'), true);
+			} else {
+				$this->post = $_POST;
+			}
 		}
+
 		$method = (isset($_REQUEST['_action'])) ? $_REQUEST['action'] : $_SERVER['REQUEST_METHOD'];
 		$callback = false;
 		$before_callback = false;
