@@ -31,19 +31,19 @@ class BackboneAPIModel {
 
 	function find_all($attrs) {
 		$sql = $this->_generate_select($attrs);
-		return $this->wpdb->get_results($sql);
+		return $this->_decoerce_needed_values($this->wpdb->get_results($sql), true);
 	}
 
 	function find_one($attrs) {
 		$attrs['limit'] = 1;
 		$sql = $this->_generate_select($attrs);
-		return $this->wpdb->get_row($sql);
+		return $this->_decoerce_needed_values($this->wpdb->get_row($sql));
 	}
 
 	function create($attrs) {
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
 		$params = $this->create_scope($params);
-		$params = $this->_dateify_needed_params($params);
+		$params = $this->_coerce_needed_values($params);
 		if (empty($params)) {
 			return false;
 		}
@@ -60,7 +60,7 @@ class BackboneAPIModel {
 	function update($attrs) {
 		$attrs['conditions'] = isset($attrs['conditions']) ? $attrs['conditions'] : array();
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
-		$params = $this->_dateify_needed_params($params);
+		$params = $this->_coerce_needed_values($params);
 		if (empty($params)) {
 			return false;
 		}
@@ -188,10 +188,35 @@ class BackboneAPIModel {
 		return static::$fields[$field_name]['type'];
 	}
 
-	function _dateify_needed_params($params) {
+	function _coerce_needed_values($params) {
 		foreach ($params as $field_name => $val) {
 			if ($this->_is_dateish_field($field_name)) {
 				$params[$field_name] = $this->_format_date_type_for_sql($field_name, $val);
+			}
+
+			if (isset(static::$fields[$field_name]['serialize'])) {
+				$params[$field_name] = call_user_func(array($this,static::$fields[$field_name]['serialize']), $val);
+			}
+		}
+		return $params;
+	}
+
+	function _decoerce_needed_values($params, $is_array_of_records=false) {
+		$fields_to_decoerce = array();
+		foreach (static::$fields as $field => $conf) {
+			if (isset($conf['deserialize'])) {
+				$fields_to_decoerce[] = $field;
+			}
+		}
+		if ($is_array_of_records) {
+			foreach ($params as $record) {
+				foreach ($fields_to_decoerce as $field_name) {
+					$record->$field_name = call_user_func(array($this,static::$fields[$field_name]['deserialize']), $record->$field_name);
+			}
+			}
+		} else {
+			foreach ($fields_to_decoerce as $field_name) {
+				$params->$field_name = call_user_func(array($this,static::$fields[$field_name]['deserialize']), $params->$field_name);
 			}
 		}
 		return $params;
