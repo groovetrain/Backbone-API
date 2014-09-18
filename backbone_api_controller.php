@@ -50,13 +50,13 @@ class BackboneAPIController {
 		// php won't fill out the post array with the vars so we handle it ourselves
 		if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
 			$php_input = file_get_contents("php://input");
-			if ($_SERVER['CONTENT_TYPE'] == 'application/json') {
+			if (strpos($_SERVER['CONTENT_TYPE'],'application/json') !== false) {
 				$this->post = json_decode($php_input, true);
 			} else {
 				parse_str($php_input, $this->post);
 			}
 		} elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
-			if ($_SERVER['CONTENT_TYPE'] == 'application/json') {
+			if (strpos($_SERVER['CONTENT_TYPE'],'application/json') !== false) {
 				$this->post = json_decode(file_get_contents('php://input'), true);
 			} else {
 				$this->post = $_POST;
