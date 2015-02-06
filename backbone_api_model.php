@@ -60,6 +60,8 @@ class BackboneAPIModel {
 	function update($attrs) {
 		$attrs['conditions'] = isset($attrs['conditions']) ? $attrs['conditions'] : array();
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
+		if( method_exists($this, 'update_scope') )
+			$params = $this->update_scope($params);
 		$params = $this->_coerce_needed_values($params);
 		if (empty($params)) {
 			return false;

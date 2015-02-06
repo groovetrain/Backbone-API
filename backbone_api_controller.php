@@ -104,7 +104,7 @@ class BackboneAPIController {
 				header($extra_header);
 			}
 		}
-		echo json_encode($payload);
+		echo json_encode($payload, JSON_NUMERIC_CHECK);
 		exit();
 	}
 }
