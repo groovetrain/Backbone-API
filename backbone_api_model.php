@@ -31,14 +31,20 @@ class BackboneAPIModel {
 
 	function find_all($attrs) {
 		$sql = $this->_generate_select($attrs);
-		return $this->_decoerce_needed_values($this->wpdb->get_results($sql), true);
+		$records = $this->_decoerce_needed_values($this->wpdb->get_results($sql), true);
+		$this->after_find($records);
+		return $records;
 	}
 
 	function find_one($attrs) {
 		$attrs['limit'] = 1;
 		$sql = $this->_generate_select($attrs);
-		return $this->_decoerce_needed_values($this->wpdb->get_row($sql));
+		$record = $this->_decoerce_needed_values($this->wpdb->get_row($sql));
+		$this->after_find($record);
+		return $record;
 	}
+
+	protected function after_find(&$records) { return; }
 
 	function create($attrs) {
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
@@ -47,21 +53,30 @@ class BackboneAPIModel {
 		if (empty($params)) {
 			return false;
 		}
+		if( !$this->before_create($params) )
+			return false;
 
 		$sprintf_array = $this->_generate_sprintf_array(array_keys($params));
 		$resp = $this->wpdb->insert($this->_prefixed_table_name, $params, $sprintf_array);
 		if ($resp == false) {
 			return false;
 		} else {
-			return $this->find_one(array('conditions' => array(array('field' => 'id', 'value' => $this->wpdb->insert_id))));
+			$record = $this->find_one(array('conditions' => array(array('field' => 'id', 'value' => $this->wpdb->insert_id))));
+			$this->after_create($record, $params);
+			return $record;
 		}
 	}
+
+	protected function before_create(&$params) { return true; }
+	protected function after_create(&$record, $params) { return; }
 
 	function update($attrs) {
 		$attrs['conditions'] = isset($attrs['conditions']) ? $attrs['conditions'] : array();
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
-		if( method_exists($this, 'update_scope') )
-			$params = $this->update_scope($params);
+		
+		if( !$this->before_update($params) )
+			return false;
+
 		$params = $this->_coerce_needed_values($params);
 		if (empty($params)) {
 			return false;
@@ -72,26 +87,33 @@ class BackboneAPIModel {
 		$sql = "UPDATE ".$this->_prefixed_table_name." SET ".$set." WHERE ".$conditions;
 		$resp = $this->wpdb->query($sql);
 		if ($resp !== false) {
-			return $this->find_one(array('conditions' => $attrs['conditions']));
+			$item = $this->find_one(array('conditions' => $attrs['conditions']));
+			$this->after_update($item, $params);
+			return $item;
 		} else {
 			return false;
 		}
 	}
+	protected function before_update(&$params) { return true; }
+	protected function after_update(&$item, $params) { return; }
 
 	function delete($attrs) {
 		$attrs['conditions'] = isset($attrs['conditions']) ? $attrs['conditions'] : array();
 		$conditions = $this->_generate_sql_conditions($attrs['conditions']);
 		$record = $this->find_one(array('conditions' => $attrs['conditions']));
+		if( !$this->before_delete($record) )
+			return false;
 		if ($record) {
 			$sql = "DELETE FROM ".$this->_prefixed_table_name." WHERE ".$conditions;
 			$resp = $this->wpdb->query($sql);
+			$this->after_delete($record, $conditions);
 			return $record;
 		} else {
 			return false;
 		}
-
-
 	}
+	protected function before_delete(&$record) { return true; }
+	protected function after_delete(&$record) { return; }
 
 	function custom_create_params($params) {
 		return $params;
