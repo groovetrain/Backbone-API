@@ -45,6 +45,8 @@ class BackboneAPIModel {
 	}
 
 	protected function after_find(&$records) { return; }
+	protected function after_find_all(&$records) { return; }
+	protected function after_find_one(&$record) { return; }
 
 	function create($attrs) {
 		$params = isset($attrs['params']) ? $this->_attr_accessible_only_params($attrs['params']) : array();
@@ -131,6 +133,15 @@ class BackboneAPIModel {
 			$sql .= $this->wpdb->prepare(" LIMIT %d", $attrs['limit']);
 		if (isset($attrs['offset']))
 			$sql .= $this->wpdb->prepare(" OFFSET %d", $attrs['offset']);
+		if (isset($attrs['order']) && isset(static::$fields[$attrs['order']])) {
+			// TODO: find some way to offer whitelisted things like custom order by stuff.
+			// Right now, you can only order by 
+			$sql .= " ORDER BY " . $attrs['order'];
+			if(isset($attrs['order_dir']) && $attrs['order_dir'] == "DESC")
+				$sql .= "DESC";
+			else
+				$sql .= "ASC";
+		}
 		return $sql;
 	}
 
